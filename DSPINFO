@@ -1,0 +1,1827 @@
+      *-------------------------------------------------------------------
+      *  = Service program... DspFInfo=
+      *  = Description....... Retrieve display file information routines=
+      *-------------------------------------------------------------------
+      *   CRTSQLRPGI OBJ(urlib/DSPFINFO)
+      *              SRCFILE(urlib/ursrcfile)
+      *              SRCMBR(DSPFINFO)
+      *              OBJTYPE(*MODULE) REPLACE(*yes)
+      *                               
+      *   CRTSRVPGM SRVPGM(urlib/DSPFINFO)
+      *             MODULE(urlib/DSPFINFO)
+      *             EXPORT(*ALL)
+      *
+
+      *
+
+     H NoMain
+
+      *-------------------------------------------------------------------
+      *  - RtvDspFDesc - Retrieve display file description (QDFRTVFD API)-
+      *-------------------------------------------------------------------
+
+     D RtvDspFDesc     PR                  ExtPgm( 'QDFRTVFD' )
+     D                                8
+     D                               10I 0 Const
+     D                                8    Const
+     D                               20    Const
+     D                              272
+
+
+     D RtvFlds         PR              N
+     D  QDspFil                      20A    Value
+     D  QNumFlds                     10I 0
+     D  QFlddta                             Like(FldDtaDS)
+
+     D FldDtaDS        DS                  Based (p_FldDtaDS) occurs(1000)
+     D  #FmtNam                      10A
+     D  #FldNam                      10A
+     D  #FldLen                       5I 0
+     D  #FldPlen                      5I 0
+     D  #FldDec                       1
+     D  #FldIO                        1
+     D  #FldAtr                       1
+     D  #FldDTUS                      1
+     D  #FldEdt                      20A
+     D  #FldRow                      10I 0
+     D  #FldCol                      10I 0
+     D  #FldCom                    1000A   varying
+      *---------------------------------------------------------------*
+      *  Retrieve Display File Fields                                 *
+      *---------------------------------------------------------------*
+
+     P RtvFlds         B                   Export
+
+
+
+     D  RtvFlds        PI                  Like(LglTyp)
+     D  QDspFil                            Like( QNamTyp ) Value
+     D  Numflds                      10I 0
+     D  FldDta                             Like(FldDtaDS)
+
+
+      *-------------------------------------------------------------------
+      *  - Base -
+      *-------------------------------------------------------------------
+
+     D QDFFBASE        DS                  Based( p_QDFFBASE) qualified
+     D  WDFFINFO                      5I 0 Overlay( QDFFBASE :  9 )
+     D  WDFFRCS                       5I 0 Overlay( QDFFBASE : 11 )
+     D  WDFFSCR                       5I 0 Overlay( QDFFBASE : 14 )
+     D  WDFFSCRS                      1A   Overlay( QDFFBASE : 20 )
+
+      *    p_QDFFSCRA  = %addr( QDFFBASE.WDFFSCRS)  first
+      *    p_QDFFSCRA  = P_QDFFSCRA + %size(QDFFSCRA) * n  next
+     DQDFFSCRA         DS                  Based( p_QDFFSCRA ) qualified
+     D WDFFSCIA                1      1
+     D WDFRVED2                2      5
+
+     DQDFFSSEQ         DS                  Based( p_QDFFSSEQ ) qualified
+     D WDFFFSST                1    256
+     D WDFFFSSC              257    260U 0
+     D WDFFFSSN              261    270
+     D WDFFFSSL              271    280
+     D  WDFBITS00            281    282
+     D WDFRVED4              283    308
+
+      *-------------------------------------------------------------------
+      *  - File Header -
+      *  p_QDFFINFO  =  p_QDFFBASE + QDFFBASE.WDFFINFO
+      *-------------------------------------------------------------------
+     D QDFFINFO        DS                  Based( p_QDFFINFO) qualified
+     D  WDFFDFLO                     10I 0 Overlay( QDFFINFO : 1 )
+     D  WDFFWUOF                     10I 0 Overlay( QDFFINFO : 5 )
+     D  WDFFFMWU                     10I 0 Overlay( QDFFINFO : 9 )
+     D  WDFFXDOF                      5I 0 Overlay( QDFFINFO : 35)
+     D  ZDFF                   1     50A
+
+      *-------------------------------------------------------------------
+      *  - File Where Used  -
+      *  p_QDFWFLEI = p_QDFFINFO + QDFFINFO.WDFFWUOF
+      *-------------------------------------------------------------------
+     D QDFWFLEI        DS                  Based( p_QDFWFLEI) qualified
+     D  WDFWXLEN                      5I 0 Overlay( QDFWFLEI : 1 )
+     D  WDFWXOKW                      5I 0 Overlay( QDFWFLEI : 3 )
+     D  WDFWWULN                     10I 0 Overlay( QDFWFLEI : 5 )
+     D  WDFWNTBO                     10I 0 Overlay( QDFWFLEI : 9 )
+     D  WDFFWXIN                      5I 0 Overlay( QDFWFLEI : 12)
+        // pointer
+     D  WDFWINDX                      1A   Overlay( QDFWFLEI : 19)
+      *-------------------------------------------------------------------
+      *  - File Dev Dept    -
+      *  p_QDFFDPDD = p_QDFFINFO + QDFFINFO.WDFFXDOF
+      *-------------------------------------------------------------------
+     D QDFFDPDD        DS                  Based( p_QDFFDPDD) qualified
+     D  WDFFFKWD                      5I 0 Overlay( QDFFDPDD : 9 )
+     D  WDFFSHB1                      5I 0 Overlay( QDFFDPDD : 13)
+     D  WDFFSHRA                      5I 0 Overlay( QDFFDPDD : 16)
+     D  WDFFCKY1                      5I 0 Overlay( QDFFDPDD : 17)
+     D  WDFFCKY2                      5I 0 Overlay( QDFFDPDD : 18)
+     D  WDFFCKY3                      5I 0 Overlay( QDFFDPDD : 19)
+     D  WDFFMKWD                      5I 0 Overlay( QDFFDPDD : 20)
+     D  WDFFMKW2                      5I 0 Overlay( QDFFDPDD : 21)
+     D  WDFFXDOC                      5I 0 Overlay( QDFFDPDD : 25)
+
+      *-------------------------------------------------------------------
+      *  - Name Table-
+      *   p_QDFFNTBL  = p_QDFWFLEI + QDFWFLEI.WDFWNTBO
+      *-------------------------------------------------------------------
+     D QDFFNTBL        DS                  Based( p_QDFFNTBL) qualified
+     D  WDFFNMS                      10I 0 Overlay( QDFFNTBL : 1 )
+        // pointer to array char(10)
+     D  WDFFNMES                      1A
+
+
+       // Field Name
+     D QDFFNTB         DS                  Based( p_QDFFNTB ) qualified
+     D   WDFFNAM                     10A
+
+      *-------------------------------------------------------------------
+      *  - Record Where Used -
+      *   p_QDFWRCDI  = p_QDFWFLEI + QDFWFLEI.WDFWXLEN   first
+      *-------------------------------------------------------------------
+     D QDFWRCDI        DS                  Based( p_QDFWRCDI ) qualified
+     D  WDFWRLEN                      5I 0 Overlay( QDFWRCDI : 1 )
+     D  WDFWROKW                      5I 0 Overlay( QDFWRCDI : 3 )
+     D  WDFWNXTR                     10I 0 Overlay( QDFWRCDI : 5 )
+     D  WDFWRIN                       5I 0 Overlay( QDFWRCDI : 9 )
+        //  pointer to indicator table
+     D  WDFWINDR                      1A   Overlay( QDFWRCDI : 13)
+
+      *-------------------------------------------------------------------
+      *  - Record Format Table-
+      *   p_QDFARFTE  = p_QDFFINFO + QDFFINFO.WDFFDFLO         first
+      *   p_QDFARFTE  = p_QDFARFTE + %Len( QDFARFTE ) next
+      *    alt p_QDFARFTE  = p_QDFFINFO + QDFFINFO.WDFFDFLO +
+      *                               (%size(QDFARFTE) * x)
+      *-------------------------------------------------------------------
+     D QDFARFTE        DS                  Based  ( p_QDFARFTE ) qualified
+     D  WDFARFNM                     10    Overlay( QDFARFTE : 1  )
+     D  WDFARCND                      5I 0 Overlay( QDFARFTE : 11 )
+     D  WDFARFOF                     10I 0 Overlay( QDFARFTE : 13 )
+
+     DQDFFSEQT         DS                  Based  ( p_QDFFSEQT ) qualified
+     D WDFFFSEQ                1     13
+     D WDFVED17               14     16
+      *-------------------------------------------------------------------
+      *  - Record Header     -
+      *    p_QDFFRINF  = p_QDFFINFO +  QDFARFTE.WDFARFOF
+      *-------------------------------------------------------------------
+     D QDFFRINF        DS                  Based  ( p_QDFFRINF ) qualified
+     D  WDFFRDDO                     10I 0 Overlay( QDFFRINF :  1 )
+     D  WDFFOFIT                     10I 0 Overlay( QDFFRINF :  5 )
+     D  WDFFSTBO                     10I 0 Overlay( QDFFRINF :  9 )
+     D  WDFFRFLG1                     1A   Overlay( QDFFRINF : 13 )
+     D  WDFFRFLG2                     1A   Overlay( QDFFRINF : 14 )
+     D  WDFFFLD                       5I 0 Overlay( QDFFRINF : 17 )
+     D  WDFFINDO                      5I 0 Overlay( QDFFRINF : 23 )
+     D  WDFFRAOF                      5I 0 Overlay( QDFFRINF : 29 )
+      *-------------------------------------------------------------------
+      *  Display-Record-Level Device-Dependent
+      *  p_QDFFXRDP  =  p_QDFFRINF  +  QDFFRDPD.WDFFXRDO
+     DQDFFXRDP         DS                  Based  (p_QDFFXRDP ) qualified
+     D WDFFFOTO                1      4B 0
+     D WDFFNRCO                5      8B 0
+     D WDFVED33                9     12
+     D WDFFSEGS               13     14B 0
+     D WDFVED34               15     16
+     D WDFHCTLO               17     18B 0
+     D WDFVED35               19     24
+     D
+     DQDFFSFCR         DS                  Based  (p_QDFFSFCR ) qualified
+     D WDFFSFLG                1     34
+     D WDFFSFEN               35     35
+     D WDFFSFDR               36     36
+     D  WDFBITS19             37     37
+     D  WDFBITS20             38     38
+     D WDFFSFPQ               39     40B 0
+     D WDFFSFVL               41     42B 0
+     D WDFFSFVO               43     44B 0
+     D WDFFSFFI               45     46B 0
+     D WDFFFSFL01             47     48B 0
+     D WDFFFSFO               49     50B 0
+     D WDFXTOFF               51     52B 0
+     D  WDFBITS21             53     53
+     D WDFVED37               54     54
+     D WDFFSFPM               55     55
+     D
+     DQDFSFSRU         DS                  Based  (p_QDFSFSRU ) qualified
+     D WDFVED39                1      1
+     D WDFFSFSR                2      2
+
+     DQDFSFERU         DS                  Based  (p_QDFSFERU ) qualified
+     D WDFVED40                1      1
+     D WDFFSFER                2      2
+
+     DQDFSFH2U         DS                  Based  (p_QDFSFH2U ) qualified
+     D WDFFSFH1                1      2B 0
+     D WDFFSFH2                3      4B 0
+     D
+     DQDFCREXT         DS                  Based  (p_QDFCREXT ) qualified
+     D WDFCRLLO                1      2B 0
+     D WDFIZSFO                3      4B 0
+     D WDFELOFF                5      6B 0
+     D WDFELCH1                7      7
+     D WDFELCH2                8      8
+     D WDFVED42                9     16
+
+      *-------------------------------------------------------------------
+      *  - Record Device-Dependent  (QDFFRDPD)
+      *   p_QDFFRDPD  = p_QDFFRINF + WDFFRAOF
+      *-------------------------------------------------------------------
+     D QDFFRDPD        DS                  Based  (p_QDFFRDPD ) qualified
+     D  WDFFDRCO                     10I 0 Overlay( QDFFRDPD :  1 )
+     D  WDFFINCP                      5I 0 Overlay( QDFFRDPD :  5 )
+     D  WDFFIBF                       5I 0 Overlay( QDFFRDPD :  7 )
+     D  WDFFOIS                       5I 0 Overlay( QDFFRDPD :  9 )
+     D  WDFACKYS                      4A   Overlay( QDFFRDPD : 13 )
+     D  WDFFPUTK                      2A   Overlay( QDFFRDPD : 17 )
+     D  WDFFGETK                      2A   Overlay( QDFFRDPD : 19 )
+     D  WDFFERRM                      5I 0 Overlay( QDFFRDPD : 21 )
+     D  WDFFBITS                      1A   Overlay( QDFFRDPD : 23 )
+     D  WDFFBITF                      1A   Overlay( QDFFRDPD : 24 )
+     D  WDFFCGRI                      5I 0 Overlay( QDFFRDPD : 25 )
+     D  WDFFHFLG                      2A   Overlay( QDFFRDPD : 27 )
+     D  WDFFXRDO                      5I 0 Overlay( QDFFRDPD : 29 )
+     D  WDFFRDOC                      5I 0 Overlay( QDFFRDPD : 33 )
+
+      *-------------------------------------------------------------------
+      *  - Row Column Table      -
+      *    p_QDFFRCTB  = p_QDFFRINF  +  WDFFDRCO
+      *    SizeIndex = 0 to WDFFSCR -1
+      *-------------------------------------------------------------------
+     D QDFFRCTB        DS                  Based  ( p_QDFFRCTB) qualified
+     D  WDFFFRRO                      1A   Overlay( QDFFRCTB : 1  )
+     D  WDFFFRCO                      1A   Overlay( QDFFRCTB : 2  )
+     D  WDFFTORO                      1A   Overlay( QDFFRCTB : 3  )
+     D  WDFFTOCO                      1A   Overlay( QDFFRCTB : 4  )
+     D  WDFFRBIT                      1A   Overlay( QDFFRCTB : 5  )
+     D  WDFFRC                        1A   Overlay( QDFFRCTB : 7  )
+      *-------------------------------------------------------------------
+      *  - Row Column Table  Entries    -
+      *    p_QDFFRCTE  = %addr(QDFFRCTB.WDFFRC)  first
+      *    p_QDFFRCTE = p_QDFFRCTE + %size(QDFFRCTE)   next
+     D QDFFRCTE        DS                  Based  ( p_QDFFRCTE) qualified
+     D  WDFFSROW               1      1A
+     D  WDFFSCOL               2      2A
+      *-------------------------------------------------------------------
+      *  - Field Where Used -
+      *    p_QDFWFLDI =  p_QDFWRCDI + QDFWRCDI.WDFWRLEN  first
+      *    p_QDFWFLDI =  p_QDFWFLDI + WDFWFLDL  next
+      *-------------------------------------------------------------------
+     D QDFWFLDI        DS                  Based  ( p_QDFWFLDI  ) qualified
+     D  WDFWFLDL                      5I 0 Overlay( QDFWFLDI : 1  )
+     D  WDFWFOKW                      5I 0 Overlay( QDFWFLDI : 3  )
+     D  WDFWRRDX                      5I 0 Overlay( QDFWFLDI : 5  )
+        //   index into Field Name Table p_QDFFNTBL
+     D  WDFWNMEI                     10I 0 Overlay( QDFWFLDI : 7  )
+     D  WDFWLFLD                      5I 0 Overlay( QDFWFLDI : 11 )
+     D  WDFWFFLG                      1A   Overlay( QDFWFLDI : 13 )
+
+      *-------------------------------------------------------------------
+      *  - Field Index      -
+      *  QDFFRINF is at variable WDFFOFIT in QDFFRINF.
+      *-------------------------------------------------------------------
+     D QDFFFITB        DS                  Based  ( p_QDFFFITB  ) qualified
+     D  WDFFFOFS                     10I 0 Overlay( QDFFFITB : 1  )
+     D  WDFFSELI                      5I 0 Overlay( QDFFFITB : 5  )
+     D  WDFFDLEN                      5I 0 Overlay( QDFFFITB : 7  )
+      *-------------------------------------------------------------------
+
+      *-------------------------------------------------------------------
+      *  - Constant Field Header -
+      *    p_QDFFFCON   =  WDFFFTBE
+      *-------------------------------------------------------------------
+     D QDFFFCON        DS                  Based  ( p_QDFFFCON  ) qualified
+     D  WDFFFAOC                      5I 0 Overlay( QDFFFCON : 3  )
+
+      *-------------------------------------------------------------------
+      *  - Named  Field Header -
+      *    p_QDFFFNAM   =  WDFFFTBE
+      *-------------------------------------------------------------------
+     D QDFFFNAM        DS                  Based  ( p_QDFFFNAM  ) qualified
+     D  WDFFINPO                      5I 0 Overlay( QDFFFNAM : 1  )
+     D  WDFFOUTO                      5I 0 Overlay( QDFFFNAM : 3  )
+     D  WDFFPLEN                      5I 0 Overlay( QDFFFNAM : 5  )
+     D  WDFFDEC                       1A   Overlay( QDFFFNAM : 7  )
+     D  WDFFKBDT                      1A   Overlay( QDFFFNAM : 8  )
+     D  WDFFFAOF                      5I 0 Overlay( QDFFFNAM : 11 )
+
+      *-------------------------------------------------------------------
+      *  - Field Header
+      *    p_QDFFFINF  = p_QDFFRINF + WDFFFOFS
+      *-------------------------------------------------------------------
+     D QDFFFINF        DS                  Based  ( p_QDFFFINF  ) qualified
+     D  WDFFFLEN                      1A   Overlay( QDFFFINF : 1  )
+     D  WDFFFIOA                      1A   Overlay( QDFFFINF : 3  )
+     D  WDFFBFLG                      1A   Overlay( QDFFFINF : 4  )
+     D  WDFFFBIT                      1A   Overlay( QDFFFINF : 5  )
+        // pointer to QDFFFCON  or QDFFFNAM
+     D  WDFFFTBE                      1A   Overlay( QDFFFINF : 7  )
+
+      *-------------------------------------------------------------------
+      *  - Field Dev Dept
+      *    p_QDFFFDPD  =   p_QDFFFINF + WDFFFAOF named
+      *    p_QDFFFDPD  =   p_QDFFFINF + WDFFFAOC constant
+      *-------------------------------------------------------------------
+     D QDFFFDPD        DS                  Based  ( p_QDFFFDPD  ) qualified
+     D  WDFFFLGS                      1A   Overlay( QDFFFDPD : 1  )
+     D  WDFFSA                        1A   Overlay( QDFFFDPD : 2  )
+     D  WDFFXFDO                      5I 0 Overlay( QDFFFDPD : 3  )
+     D  WDFFFDOC                      5I 0 Overlay( QDFFFDPD : 5  )
+       // pointer
+     D  WDFFFICE                      1A   Overlay( QDFFFDPD : 7  )
+
+      *-------------------------------------------------------------------
+      *  - Input-Capable Display Field-Level Device-Dep
+      *    p_QDFFFDIC  = WDFFFICE
+      *-------------------------------------------------------------------
+     D QDFFFDIC        DS                  Based  ( p_QDFFFDIC  ) qualified
+     D  WDFFFWFW                      2A   Overlay( QDFFFDIC : 1  )
+     D  WDFFSSKW                      1A   Overlay( QDFFFDIC : 3  )
+     D  WDFFCHKB                      1A   Overlay( QDFFFDIC : 4  )
+
+      *-------------------------------------------------------------------
+      *  - Field-Dependent Extension  -
+      *    p_QDFFXFDP  =  p_QDFFFINF + WDFFXFDO
+      *-------------------------------------------------------------------
+     D QDFFXFDP        DS                  Based  ( p_QDFFXFDP  ) qualified
+     D  WDFFKFLG                      2A   Overlay( QDFFXFDP : 1  )
+     D  WDFFFLDINX                    5I 0 Overlay( QDFFXFDP : 3  )
+     D  WDFFXLFLGS                    1A   Overlay( QDFFXFDP : 4  )
+         //  this is a BIN 16
+     D  WDFF_UCS2_                    2A   Overlay( QDFFXFDP : 6  )
+
+      *-------------------------------------------------------------------
+      *  - Keyword Category Displacement
+      *  file      p_QDFFCOSA =   p_QDFFINFO + WDFFXDOC
+      *  record    p_QDFFCOSA =   p_QDFFRINF + WDFFRDOC
+      *  field     p_QDFFCOSA =   p_QDFFFINF + WDFFFDOC
+      *-------------------------------------------------------------------
+     D QDFFCOSA        DS                  Based  ( p_QDFFCOSA  ) qualified
+     D  WDFFCCT                       5I 0 Overlay( QDFFCOSA : 1  )
+       //  pointer
+     D  WDFFCCOS                      1A   Overlay( QDFFCOSA : 3  )
+
+      *-------------------------------------------------------------------
+      *  - Keyword Category Displacement String Entry
+      *    p_QDFFCCOA =   %addr(WDFFCCOS)
+      *-------------------------------------------------------------------
+     D QDFFCCOA        DS                  Based  ( p_QDFFCCOA  ) qualified
+     D  WDFFCAID                      1A   Overlay( QDFFCCOA : 1  )
+     D  WDFFCAOF                      5I 0 Overlay( QDFFCCOA : 2  )
+
+      *-------------------------------------------------------------------
+      *  - Subfile Control Record-
+      *-------------------------------------------------------------------
+
+     DQDFFSFHR         DS                  Based  (p_QDFFSFHR ) qualified
+     D WDFFSFSZ                1      2B 0
+     D WDFFSFPG                3      4B 0
+     D WDFVED38                5      6
+     D WDFFFSFT                7      8B 0
+     D WDFSFR1U                9     10
+     D  WDFFSFR1               9     10B 0
+     D  WDFVED3900             9      9
+     D  WDFFSFSR00            10     10
+     D WDFSFR2U               11     12
+     D  WDFFSFR2              11     12B 0
+     D  WDFVED4000            11     11
+     D  WDFFSFER00            12     12
+     D WDFSFLNU               13     16
+     D  WDFFSFLN              13     16
+     D  WDFFSFH100            13     14B 0
+     D  WDFFSFH200            15     16B 0
+     D WDFFFSFF               17     18B 0
+     D WDFVED41               19     24
+
+     DQDFKFILK         DS                  Based  (p_QDFKFILK ) qualified
+     D WDFFKFIL                       5I 0 Overlay( QDFKFILK : 1  )
+     D WDFKFILE                       1A   Overlay( QDFKFILK : 3  )
+
+     DQDFKFLPM         DS                  Based  (p_QDFKFLPM ) qualified
+     D WDFKFLID                       1    Overlay( QDFKFLPM : 1  )
+     D WDFKFLST                       5I 0 Overlay( QDFKFLPM : 2  )
+     D WDFKFLRS                       5I 0 Overlay( QDFKFLPM : 4  )
+     D WDFFKFLP                       5I 0 Overlay( QDFKFLPM : 6  )
+     D WDFKFLEX                       1A   Overlay( QDFKFLPM : 8  )
+
+     DQDFKFLPP         DS                  Based  (p_QDFKFLPP ) qualified
+     D WDFKFLLN                       5I 0 Overlay( QDFKFLPP : 1  )
+     D WDFKFLNM                       1A   Overlay( QDFKFLPP : 3  )
+
+     DQDFKFLSZ         DS                  Based  (p_QDFKFLSZ ) qualified
+     D WDFKFLML                1      2B 0
+     D WDFVED57                3      6
+
+     DQDFKICVP         DS                  Based  (p_QDFKICVP ) qualified
+     D WDFKICVN                1      2B 0
+     D WDFKICVK                3      4B 0
+     D WDFKICVT                5      6B 0
+
+     DQDFKHARD         DS                  Based  (p_QDFKHARD ) qualified
+     D WDFKHRFM                1     10
+     D WDFKHFIL               11     20
+     D WDFKHLIB               21     30
+
+     DQDFKHXPS         DS                  Based  (p_QDFKHXPS ) qualified
+     D WDFKHXHG                1     10
+     D WDFKHXHL               11     20
+     D WDFKHXML               21     22B 0
+
+     DQDFKHDOC         DS                  Based  (p_QDFKHDOC ) qualified
+     D WDFKHDLA                1     10
+     D WDFKHDDO               11     22
+     D WDFKHDFL               23     24B 0
+
+     DQDFKSIDX         DS                  Based  (p_QDFKSIDX ) qualified
+     D WDFKSIOB                1     10
+     D WDFKSILB               11     20
+
+     DQDFKFALX         DS                  Based  (p_QDFKFALX ) qualified
+     D WDFFKALT                1      2B 0
+
+     DQDFKFALK         DS                  Based  (p_QDFKFALK ) qualified
+     D WDFKANME                1     10
+     D WDFKAINX               11     12B 0
+
+     DQDFKESFL         DS                  Based  (p_QDFKESFL ) qualified
+     D WDFKESCR                1     10
+
+     DQDFKBODR         DS                  Based  (p_QDFKBODR ) qualified
+     D WDFKCLOR                1      1
+     D WDFKDATR                2      2
+     D WDFKCHRS                3     10
+
+     DQDFKCKKW         DS                  Based  (p_QDFKCKKW ) qualified
+     D WDFFKCKS                1      2B 0
+     D WDFKCKCM                3      3
+
+     DQDFKCKKE         DS                  Based  (p_QDFKCKKE ) qualified
+     D WDFKCKID                1      1
+     D WDFKCKIN                2      3B 0
+     D WDFKCKRS                4      5B 0
+     D WDFKCKMA                6      9
+
+     DQDFKOVRR         DS                  Based  (p_QDFKOVRR ) qualified
+     D WDFFKOLS                1      2B 0
+
+     DQDFKOVRE         DS                  Based  (p_QDFKOVRE ) qualified
+     D WDFKOLAD                1      1
+     D WDFKOLAN                2      3B 0
+
+     DQDFKOVRP         DS                  Based  (p_QDFKOVRP ) qualified
+     D WDFKOLID                1      1
+     D WDFKOLIN                2      3B 0
+
+     DQDFKOLER         DS                  Based  (p_QDFKOLER ) qualified
+     D WDFFKOLE                1      2B 0
+
+     DQDFKOLCL         DS                  Based  (p_QDFKOLCL ) qualified
+     D WDFFKOLC                1      2B 0
+     D WDFKOLCN                3      4B 0
+
+     DQDFKMSRL         DS                  Based  (p_QDFKMSRL ) qualified
+     D WDFFKMSS                       5I 0 Overlay( QDFKMSRL : 1 )
+     D WDFKMSKW                       1A   Overlay( QDFKMSRL : 3 )
+
+     DQDFKMSAP         DS                  Based  (p_QDFKMSAP ) qualified
+     D WDFKMSAD                1      1
+     D WDFKMSAN                2      3B 0
+
+     DQDFKMSCP         DS                  Based  (p_QDFKMSCP ) qualified
+     D WDFKMSID                1      1
+     D WDFKMSIN                2      3B 0
+
+     DQDFKMSK1         DS                  Based  (p_QDFKMSK1 ) qualified
+     D WDFKMSLC                1      2B 0
+     D WDFVED58                3      3
+     D WDFKMSRW                4      5B 0
+     D WDFKMSCL                6      7B 0
+     D WDFKMSFA                8     11B 0
+     D WDFKMSFB               12     15B 0
+
+     DQDFKMSK2         DS                  Based  (p_QDFKMSK2 ) qualified
+     D WDFKMSLN                1      2B 0
+
+     DQDFKMSK3         DS                  Based  (p_QDFKMSK3 ) qualified
+     D WDFKMSDM                1      2B 0
+
+     DQDFMSCLN         DS                  Based  (p_QDFMSCLN ) qualified
+     D WDFSCROU                1      2
+     D  WDFMSCRO               1      2B 0
+     D  WDFKRCLR               1      2B 0
+     D WDFSCFOU                3      4
+     D  WDFMSCFO               3      4B 0
+     D  WDFKRCLC               3      4B 0
+     D WDFSCLOU                5      6
+     D  WDFMSCLO               5      6B 0
+     D  WDFKCLWR               5      6B 0
+     D WDFRCLWC                7      8B 0
+     D WDFCTYPE                9      9
+     D  WDFBITS32             10     10
+
+     DQDFMBDSP         DS                  Based  (p_QDFMBDSP ) qualified
+     D WDFBDRCN                1     10
+     D WDFBDCFO               11     12B 0
+     D WDFBDPIO               13     14B 0
+
+     DQDFK0BPR         DS                  Based  (p_QDFK0BPR ) qualified
+     D WDF0BPCT                1      2B 0
+
+     DQDF0BXWP         DS                  Based  (p_QDF0BXWP ) qualified
+     D WDF0BPID                1      1
+     D WDF0BPIN                2      3B 0
+     D WDF0BPLN                4      5B 0
+
+     DQDFBGATR         DS                  Based  (p_QDFBGATR ) qualified
+     D WDF0BCLR                1      1
+     D WDFVED59                2      2
+     D WDFK0BLT                3      3
+     D WDFVED60                4      4
+
+     DQDFBKPRM         DS                  Based  (p_QDFBKPRM ) qualified
+     D WDFBKNAM                1      8
+
+     DQDFKMRPR         DS                  Based  (p_QDFKMRPR ) qualified
+     D WDFFKRPS                1      2B 0
+
+     DQDFKMRWP         DS                  Based  (p_QDFKMRWP ) qualified
+     D WDFKMPID                1      1
+     D WDFKMPIN                2      3B 0
+     D WDFKMPLN                4      5B 0
+
+     DQDFKHSTR         DS                  Based  (p_QDFKHSTR ) qualified
+     D WDFWDFKH                1      2B 0
+
+     DQDFKHPRM         DS                  Based  (p_QDFKHPRM ) qualified
+     D WDFKHOFS                1      2B 0
+     D  WDFBITS33              3      4
+     D WDFKHSRO                5      6B 0
+     D WDFKHCRD                7      8B 0
+     D WDFKHCBY                9     10B 0
+     D WDFKHARO               11     12B 0
+     D WDFKHCEX               13     14B 0
+     D WDFVED62               15     17
+
+     DQDFKHNMS         DS                  Based  (p_QDFKHNMS ) qualified
+     D WDFKHRCD                1     10
+     D WDFKHFLE               11     20
+     D WDFKHRLB               21     30
+
+     DQDFKHPS          DS                  Based  (p_QDFKHPS ) qualified
+     D WDFKHPNN                1     10
+     D WDFKHPLB               11     20
+     D WDFKHMLN               21     22B 0
+
+     DQDFKHRDC         DS                  Based  (p_QDFKHRDC ) qualified
+     D WDFKHRLA                1     10
+     D WDFKHRDO               11     22
+     D WDFKHRFL               23     24B 0
+
+     DQDFKHARA         DS                  Based  (p_QDFKHARA ) qualified
+     D WDFKHFRO                1      1
+     D WDFKHFCO                2      2
+     D WDFKHTRO                3      3
+     D WDFKHTCO                4      4
+
+     DQDFKHARX         DS                  Based  (p_QDFKHARX ) qualified
+     D  WDFBITS34              1      1
+     D WDFHFLDI                2      3B 0
+     D WDFHCHID                4      5
+
+     DQDFKHSEQ         DS                  Based  (p_QDFKHSEQ ) qualified
+     D WDFKHSGN                1     10
+     D WDFFKHSS               11     12B 0
+     D WDFKHSIF               13     14B 0
+     D WDFKHSIL               15     16B 0
+     D WDFKHSIN               17     18B 0
+     D WDFKHSIP               19     20B 0
+
+     DQDFKPRTR         DS                  Based  (p_QDFKPRTR ) qualified
+     D WDFKRLRS                1      2B 0
+     D WDFFKRLP                3      4B 0
+
+     DQDFKPPRM         DS                  Based  (p_QDFKPPRM ) qualified
+     D WDFKPLEN                1      2B 0
+
+     DQDFKBRDR         DS                  Based  (p_QDFKBRDR ) qualified
+     D WDFKCOLR                1      1
+     D WDFKDSPA                2      2
+     D WDFKCHAR                3     10
+
+     DQDFKLINU         DS                  Based  (p_QDFKLINU ) qualified
+     D WDFFKLIN                1      2B 0
+     D WDFFKPOS                3      4B 0
+     D WDFKLINW                5      6B 0
+     D WDFKPOSW                7      8B 0
+     D WDFVED66                9     10
+
+     DQDFKWDTA         DS                  Based  (p_QDFKWDTA ) qualified
+     D  WDFBITS35              1      2
+     D WDFWNAMU                3     12
+     D  WDFKWNAM               3     12
+     D  WDFFKLIN00             3      4B 0
+     D  WDFFKPOS00             5      6B 0
+     D  WDFKLINW00             7      8B 0
+     D  WDFKPOSW00             9     10B 0
+     D  WDFVED6600            11     12
+
+     DQDFOLORU         DS                  Based  (p_QDFOLORU ) qualified
+     D WDFVED68                1      1
+     D WDFCOLOR                2      2
+
+     DQDFDSPAU         DS                  Based  (p_QDFDSPAU ) qualified
+     D WDFVED69                1      1
+     D WDFTDSPA                2      2
+
+     DQDFLIGNU         DS                  Based  (p_QDFLIGNU ) qualified
+     D WDFVED70                1      1
+     D WDFALIGN                2      2
+
+     DQDFDWTTL         DS                  Based  (p_QDFDWTTL ) qualified
+     D WDFDWOVL                1      5
+     D  WDFBITS36              6      6
+     D WDFLRPFU                7      8
+     D  WDFCLRPF               7      8B 0
+     D  WDFVED6800             7      7
+     D  WDFCOLOR00             8      8
+     D WDFSPPFU                9     10
+     D  WDFDSPPF               9     10B 0
+     D  WDFVED6900             9      9
+     D  WDFTDSPA00            10     10
+     D WDFALGNU               11     12
+     D  WDFTALGN              11     12B 0
+     D  WDFVED7000            11     11
+     D  WDFALIGN00            12     12
+     D WDFTTXTO               13     14B 0
+     D WDFTTXTL               15     16B 0
+     D WDFVED71               17     26
+
+     DQDFKMB           DS                  Based  (p_QDFKMB ) qualified
+     D  WDFBITS37              1      1
+     D WDFFIRST                2      2
+     D WDFECOND                3      3
+     D WDFMBAID                4      4
+
+     DQDFKSCSF         DS                  Based  (p_QDFKSCSF ) qualified
+     D WDFFKSCS                1      2B 0
+
+     DQDFKSCCP         DS                  Based  (p_QDFKSCCP ) qualified
+     D WDFKSCID                1      1
+     D WDFKSCIN                2      3B 0
+
+     DQDFKSCSM         DS                  Based  (p_QDFKSCSM ) qualified
+     D WDFKSCRS                1      2B 0
+     D WDFKSCTY                3      3
+     D WDFKSCLN                4      5B 0
+
+     DQDFKSCSI         DS                  Based  (p_QDFKSCSI ) qualified
+     D WDFKSCMI                1      7
+     D WDFKSCMF                8     17
+     D WDFKSCML               18     27
+     D WDFKSCDL               28     29B 0
+     D WDFKSCMO               30     31B 0
+
+     DQDFKSFLM         DS                  Based  (p_QDFKSFLM ) qualified
+     D WDFKMORE                1     12
+     D WDFKBOTT               13     24
+
+     DQDFKSFLS         DS                  Based  (p_QDFKSFLS ) qualified
+     D WDFNDSPM                1      1
+     D WDFLMORE                2     13
+     D WDFLBOTT               14     25
+
+     DQDFSRRRN         DS                  Based  (p_QDFSRRRN ) qualified
+     D WDFCSRNO                1      2B 0
+
+     DQDFKMODE         DS                  Based  (p_QDFKMODE ) qualified
+     D WDFSCMDO                1      2B 0
+
+     DQDFKSASA         DS                  Based  (p_QDFKSASA ) qualified
+     D WDFFKSAS                1      2B 0
+
+     DQDFKSAPM         DS                  Based  (p_QDFKSAPM ) qualified
+     D WDFKSAIA                1      1
+     D WDFKSAII                2      3B 0
+     D WDFKSAOA                4      4
+
+     DQDFKFFWR         DS                  Based  (p_QDFKFFWR ) qualified
+     D WDFFKFWS                1      2B 0
+
+     DQDFKCHKP         DS                  Based  (p_QDFKCHKP ) qualified
+     D WDFKFWID                1      1
+     D WDFKFWIN                2      3B 0
+     D WDFKFWOV                4      5
+
+     DQDFKMFDK         DS                  Based  (p_QDFKMFDK ) qualified
+     D WDFFKMFS                1      2B 0
+     D WDFKMFNO                3      4B 0
+     D WDFKMFEN                5      5A
+
+      * p_QDFKMFDP = %ADDR(QDFKMFDK.WDFKMFEN)
+     DQDFKMFDP         DS                  Based  (p_QDFKMFDP ) qualified
+     D WDFKMFID                1      1
+     D WDFKMFIN                2      3B 0
+     D WDFKMFEX                4      4A
+
+      * Response Indicator Structure (QDFKMFRS)
+      * p_QDFKMFRS = %ADDR(QDFKMFDP.WDFKMFEX)
+     DQDFKMFRS         DS                  Based  (p_QDFKMFRS ) qualified
+     D WDFKMFRP                1      2B 0
+     D WDFKMFEE                3      3A
+
+      * ERRMSG and ERRMSGID Keyword Structure (QDFKMFEM)
+      *  p_QDFKMFEM = %ADDR(QDFKMFRS.WDFKMFEE)
+     DQDFKMFEM         DS                  Based  (p_QDFKMFEM ) qualified
+     D WDFKMFTP                1      1
+     D WDFKMFEL                2      3B 0
+     D WDFKMFTX                4      4A
+
+     DQDFKMFSI         DS                  Based  (p_QDFKMFSI ) qualified
+     D WDFKMFMI                1      7
+     D WDFKMFMF                8     17
+     D WDFKMFML               18     27
+     D WDFKMFDL               28     29B 0
+     D WDFKMFMO               30     31B 0
+
+     DQDFKMFMV         DS                  Based  (p_QDFKMFMV ) qualified
+     D WDFKMFMM                1      1
+     D WDFKMFMP                2      4
+     D WDFKMFFL                5      6B 0
+     D WDFKMFFV                7     16
+     D WDFKMFLV               17     26
+
+     DQDFKMFM3         DS                  Based  (p_QDFKMFM3 ) qualified
+     D WDFFKMF1                1      3
+     D WDFFKMF2                4      7
+
+     DQDFKMFM4         DS                  Based  (p_QDFKMFM4 ) qualified
+     D WDFKMFD4                1      1
+
+     DQDFKDFLD         DS                  Based  (p_QDFKDFLD ) qualified
+     D WDFKDFLO                1      2B 0
+
+     DQDFK_DATTIMFmat  DS                  Based  (p_QDFK_DATTIMFmat) qualified
+     D WDFK_DATTIM             1      2B 0
+
+     DQDFK_DATTIM_Sep  DS                  Based  (p_QDFK_DATTIM_Sep ) qualified
+     D WDFK_DATTIMSep          1      1A
+
+     DQDFK_DATEP       DS                  Based  (p_QDFK_DATEP) qualified
+      * 0   BIT(1)  WDFK_DATE_SYS   If on, the *SYS parameter is specified on th
+      * 1   BIT(1)  WDFK_DATE_YY    If on, the *YY parameter is specified on the
+      * 2   BIT(1)  WDFK_DATE_EDTCDEY   If on, the EDTCDE(Y) keyword was specifi
+     D WDFK_DATE               1      1A
+
+      *  Length of this structure is
+      *   is WDFK_MAPVAL_C * WDFK_MAPVAL_L
+      *      p_QDFK_MAPVAL = %ADDR(QDFKMFDP.WDFKMFEX)
+      *    Number of MAPVAL keyword parameters.
+      *    Length of each MAPVAL keyword parameter.
+      *    MAPVAL parameter
+     DQDFK_MAPVAL      DS                  Based  (p_QDFK_MAPVAL) qualified
+     D WDFK_MAPVAL_C           1      2B 0
+     D WDFK_MAPVAL_L           3      4B 0
+     D WDFK_MAPVAL             1      1A
+
+     DQDFKDTFT         DS                  Based  (p_QDFKDTFT ) qualified
+     D WDFKDTFT00              1      2B 0
+
+     DQDFKDTSP         DS                  Based  (p_QDFKDTSP ) qualified
+     D WDFKDTSP00              1      1
+
+     DQDFKDATP         DS                  Based  (p_QDFKDATP ) qualified
+     D  WDFBITS56              1      1
+
+     DQDFKMPVL         DS                  Based  (p_QDFKMPVL ) qualified
+     D WDFPVLCT                1      2B 0
+     D WDFPVLLN                3      4B 0
+
+     DQDFKDFT          DS                  Based  (p_QDFKDFT ) qualified
+     D  WDFFKDFS                      5I 0 Overlay( QDFKDFT  : 1  )
+     D  WDFKDFPE                      1A   Overlay( QDFKDFT  : 3  )
+
+     DQDFKDFPM         DS                  Based  (p_QDFKDFPM ) qualified
+     D WDFKDFID                1      1
+     D WDFKDFTY                2      2
+     D WDFKDFIN                3      4B 0
+     D WDFKDFLN                5      6B 0
+
+     DQDFKDFMM         DS                  Based  (p_QDFKDFMM ) qualified
+     D WDFKDFMI                1      7
+     D WDFKDFMF                8     17
+     D WDFKDFML               18     27
+
+     DQDFFHTML00       DS                  Based  (p_QDFFHTML00 ) qualified
+     D  WDFBITS57              1      1
+     D WDFFHLEN                2      3B 0
+     D WDFFHOFF                4      5B 0
+     D WDFLTEXT                6      6
+
+     DQDFKEDTR         DS                  Based  (p_QDFKEDTR ) qualified
+     D WDFFKEDS                1      2B 0
+     D WDFKEDKW                3      3A
+     D xDFKEDID                4      4
+     D xDFKEDSY                5      5
+     D xDFKEDML                6      7B 0
+     D xDFVED73                8      8
+     D xDFKEDMS                9      9A
+     D xDFKEDMSx              10     24A
+
+     DQDFKEDTP         DS                  Based  (p_QDFKEDTP ) qualified
+     D WDFKEDID                1      1
+     D WDFKEDSY                2      2
+     D WDFKEDML                3      4B 0
+     D WDFVED73                5      5
+     D WDFKEDMS                6      6A
+     D WDFKEDMSx               6     40A
+
+
+     DQDFKEDTMSK       DS                  Based  (p_QDFKEDTMSK)  qualified
+     D WDFKEDMNUM                     5I 0 Overlay( QDFKEDTMSK : 1)
+     D WDFKEDMSEG                     1A   Overlay( QDFKEDTMSK : 3)
+
+
+     DQDFKEDTSEG       DS                  Based  (p_QDFKEDTSEG)  qualified
+     D WDFKEDMPOS                     5I 0 Overlay( QDFKEDTSEG : 1)
+     D WDFKEDMLEN                     5I 0 Overlay( QDFKEDTSEG : 3)
+
+     DQDFKVAKW         DS                  Based  (p_QDFKVAKW ) qualified
+     D WDFFKVAL                1      2B 0
+
+     DQDFKVARL         DS                  Based  (p_QDFKVARL ) qualified
+     D  WDFBITS38              1      1
+     D  WDFBITS39              2      2
+     D WDFVED76                3      3
+     D WDFKVATP                4      4
+     D WDFFKLAP                5      6B 0
+     D WDFKLATP                7      8B 0
+
+     DQDFKCKMI         DS                  Based  (p_QDFKCKMI ) qualified
+     D WDFKCKMD                1      7
+     D WDFKCKMF                8     17
+     D WDFKCKML               18     27
+     D WDFKCKDL               28     29B 0
+     D WDFFKCKB               30     31B 0
+
+     DQDFKFCPR         DS                  Based  (p_QDFKFCPR ) qualified
+     D WDFFKFCS                1      2B 0
+
+     DQDFKFC           DS                  Based  (p_QDFKFC ) qualified
+     D WDFKFCID                1      1
+     D WDFKFCIN                2      3B 0
+     D WDFKFCLN                4      5B 0
+
+     DQDFKCHC          DS                  Based  (p_QDFKCHC ) qualified
+     D WDFCHCCT                1      2B 0
+     D WDFCHCFN                3     12
+     D WDFKCHCR               13     14B 0
+     D WDFKCHCC               15     16B 0
+     D WDFCHAR1               17     17
+     D WDFCHAR2               18     18
+     D WDFVED77               19     19
+
+     DQDFDREXP         DS                  Based  (p_QDFDREXP ) qualified
+     D WDFXPLEN                1      2B 0
+     D WDFOWCOL                3      4B 0
+     D WDFUTTER                5      6B 0
+     D  WDFBITS40              7      8
+     D WDFVED81                9     18
+
+     DQDFKCHCE         DS                  Based  (p_QDFKCHCE ) qualified
+     D WDFVED82                1      1
+     D WDFKCLEN                2      3B 0
+     D  WDFBITS41              4      4
+     D WDFWDFKC                5      6
+     D WDFINX26                7      8B 0
+     D WDFCTXTO                9     10B 0
+     D WDFCTXTL               11     12B 0
+     D WDFCMSGO               13     14B 0
+     D WDFCACCO               15     16B 0
+     D WDFPRCDU               17     18
+     D  WDFCPRCD              17     18B 0
+     D  WDFBCAID              17     17
+     D WDFCRTNO               19     20B 0
+     D WDFCRTNL               21     22B 0
+     D WDFCCTLO               23     24B 0
+     D WDFCTLIO               25     26B 0
+
+     DQDFKCTXT         DS                  Based  (p_QDFKCTXT ) qualified
+     D WDFCMNEM                1      2B 0
+
+     DQDFKCACC         DS                  Based  (p_QDFKCACC ) qualified
+     D WDFACCSL                1      2B 0
+     D WDFCACCL                3      4B 0
+     D WDFACCFO                5      6B 0
+
+     DQDFKCMSG         DS                  Based  (p_QDFKCMSG ) qualified
+     D  WDFBITS42              1      1
+     D WDFID26U                2      8
+     D  WDFMID26               2      8
+     D  WDFKMIDO               2      3B 0
+     D WDFCMFLU                9     18
+     D  WDFKCMFL               9     18
+     D  WDFCMFLO               9     10B 0
+     D WDFCMLBU               19     28
+     D  WDFKCMLB              19     28
+     D  WDFCMLBO              19     20B 0
+
+     DQDFBSEPS         DS                  Based  (p_QDFBSEPS ) qualified
+     D  WDFBITS43              1      1
+     D WDFBSCOU                2      3
+     D  WDFMBSCO               2      3B 0
+     D  WDFBSCLR               2      2
+     D WDFBSAOU                4      5
+     D  WDFMBSAO               4      5B 0
+     D  WDFBSATR               4      4
+     D WDFSCHOU                6      7
+     D  WDFBSCHO               6      7B 0
+     D  WDFBSCHR               6      6
+
+     DQDFKCHCX         DS                  Based  (p_QDFKCHCX ) qualified
+     D WDFVED92                1      1
+     D WDFHCCLR                2      2
+     D WDFVED93                3      3
+     D WDFHCATR                4      4
+     D WDFVED94                5      5
+
+     DQDFEFATR         DS                  Based  (p_QDFEFATR ) qualified
+     D  WDFBITS44              1      1
+     D WDFFACLR                2      2
+     D WDFVED96                3      3
+     D WDFFAATR                4      4
+     D WDFVED97                5      5
+
+     DQDFFLDCP         DS                  Based  (p_QDFFLDCP ) qualified
+     D WDFLDNUM                1      2B 0
+     D WDFVED98                3      3
+
+     DQDFNTFLD         DS                  Based  (p_QDFNTFLD ) qualified
+     D WDFLDNUM00              1      2B 0
+     D WDFVED99                3      3
+
+     DQDFDTMSK00       DS                  Based  (p_QDFDTMSK00 ) qualified
+     D WDFDMNUM                1      2B 0
+
+     DQDFDTSEG         DS                  Based  (p_QDFDTSEG ) qualified
+     D WDFDMPOS                1      2B 0
+     D WDFDMLEN                3      4B 0
+
+     DQDFKSMSG         DS                  Based  (p_QDFKSMSG ) qualified
+     D  WDFBITS45              1      1
+     D WDFSMIDU                2      8
+     D  WDFKSMID               2      8
+     D  WDFSMIDO               2      3B 0
+     D WDFSMFLU                9     18
+     D  WDFKSMFL               9     18
+     D  WDFSMFLO               9     10B 0
+     D WDFSMLBU               19     28
+     D  WDFKSMLB              19     28
+     D  WDFSMLBO              19     20B 0
+
+     DQDFKGRPR         DS                  Based  (p_QDFKGRPR ) qualified
+     D WDFKPCNT                1      2B 0
+
+     DQDFKGRWP         DS                  Based  (p_QDFKGRWP ) qualified
+     D WDFKGPID                1      1
+     D WDFKGPIN                2      3B 0
+     D WDFKGPLN                4      5B 0
+
+     DQDFRDATR         DS                  Based  (p_QDFRDATR ) qualified
+     D WDFCLROU                1      2
+     D  WDFGCLRO               1      2B 0
+     D  WDFGCLOR               1      1
+     D WDFLNTOU                3      4
+     D  WDFGLNTO               3      4B 0
+     D  WDFFKGLT               3      3
+     D  WDFBITS46              5      5
+
+     DQDFRDCLR         DS                  Based  (p_QDFRDCLR ) qualified
+     D  WDFBITS47              1      1
+     D WDFSROWU                2      3
+     D  WDFCSROW               2      3B 0
+     D  WDFGCSRO               2      3B 0
+     D WDFSCOLU                4      5
+     D  WDFCSCOL               4      5B 0
+     D  WDFGCSCO               4      5B 0
+     D WDFCDEPU                6      7
+     D  WDFGCDEP               6      7B 0
+     D  WDFGCDEO               6      7B 0
+     D WDFCWIDU                8      9
+     D  WDFGCWID               8      9B 0
+     D  WDFGCWIO               8      9B 0
+
+     DQDFRDBOX         DS                  Based  (p_QDFRDBOX ) qualified
+     D  WDFBITS48              1      1
+     D WDFGBTOB                2      2
+     D WDFBHZOU                3      4
+     D  WDFGBHZO               3      4B 0
+     D  WDFKGHZV               3      4B 0
+     D WDFBVTOU                5      6
+     D  WDFGBVTO               5      6B 0
+     D  WDFKGVTV               5      6B 0
+     D WDFBCLOU                7      8
+     D  WDFGBCLO               7      8B 0
+     D  WDFGBCLR               7      7
+     D WDFBLTOU                9     10
+     D  WDFGBLTO               9     10B 0
+     D  WDFGBLNT               9      9
+     D WDFBCTLO               11     12B 0
+
+     DQDFOXDFM         DS                  Based  (p_QDFOXDFM ) qualified
+     D  WDFBITS49              1      1
+     D WDFSROWU00              2      3
+     D  WDFBSROW               2      3B 0
+     D  WDFGBSRO               2      3B 0
+     D WDFSCOLU00              4      5
+     D  WDFBSCOL               4      5B 0
+     D  WDFGBSCO               4      5B 0
+     D WDFBDEPU                6      7
+     D  WDFGBDEP               6      7B 0
+     D  WDFGBDEO               6      7B 0
+     D WDFBWIDU                8      9
+     D  WDFGBWID               8      9B 0
+     D  WDFGBWIO               8      9B 0
+
+     DQDFRDLIN         DS                  Based  (p_QDFRDLIN ) qualified
+     D  WDFBITS50              1      1
+     D WDFLTYPL                2      2
+     D WDFLINOU                3      4
+     D  WDFGLINO               3      4B 0
+     D  WDFGLINT               3      4B 0
+     D WDFLRPOU                5      6
+     D  WDFGLRPO               5      6B 0
+     D  WDFGLRPT               5      6B 0
+     D WDFLCLOU                7      8
+     D  WDFGLCLO               7      8B 0
+     D  WDFGLCLR               7      7
+     D WDFLLTOU                9     10
+     D  WDFGLLTO               9     10B 0
+     D  WDFGLLNT               9      9
+     D WDFLCTLO               11     12B 0
+
+     DQDFINDFM         DS                  Based  (p_QDFINDFM ) qualified
+     D  WDFBITS51              1      1
+     D WDFSROWU01              2      3
+     D  WDFLSROW               2      3B 0
+     D  WDFGLSRO               2      3B 0
+     D WDFSCOLU01              4      5
+     D  WDFLSCOL               4      5B 0
+     D  WDFGLSCO               4      5B 0
+     D WDFLLENU                6      7
+     D  WDFGLLEN               6      7B 0
+     D  WDFGLLNO               6      7B 0
+
+
+
+     DQDFWITBE         DS                  Based  (p_QDFWITBE ) qualified
+     D WDFWINBR                1      1
+     D WDFWIOBF                2      2
+     D WDFWIIBF                3      3
+     D WDFWITXT                4      5B 0
+
+     DQDFWKWDA         DS                  Based  (p_QDFWKWDA ) qualified
+     D WDFWKWDC                1      2B 0
+
+     DQDFKWIDU         DS                  Based  (p_QDFKWIDU ) qualified
+     D WDFED117                1      1
+     D WDFWKWID                2      2
+
+     DQDFWATTR         DS                  Based  (p_QDFWATTR ) qualified
+     D WDFKTYPU                1      2
+     D  WDFWKTYP               1      2B 0
+     D  WDFED11700             1      1
+     D  WDFWKWID00             2      2
+     D WDFWKLEN                3      4B 0
+
+     DQDFWATYP         DS                  Based  (p_QDFWATYP ) qualified
+     D WDFWALEN                1      2B 0
+     D WDFED118                3      3
+     D WDFWPRMT                4      4
+
+     DQDFWBTYP         DS                  Based  (p_QDFWBTYP ) qualified
+     D WDFFWATS                1      2B 0
+
+     DQDFWRSTR         DS                  Based  (p_QDFWRSTR ) qualified
+     D  WDFBITS53              1      1
+     D  WDFBITS54              2      2
+     D WDFWRFEI                3      6B 0
+     D WDFWRLBI                7     10B 0
+     D WDFWRRFI               11     14B 0
+     D WDFWRFDI               15     18B 0
+
+
+     D SmlIntTyp       S              5I 0
+     D IntTyp          S             10I 0
+     D ChrTyp          S              1
+     D QNamTyp         S             20A
+     D NamTyp          S             10A
+     D LglTyp          S               N
+     D Buftyp          S          32000A
+
+      *-------------------------------------------------------------------
+      *  - Work fields-
+      *-------------------------------------------------------------------
+
+     D NoAPIError      C                   Const( *Zero )
+
+     D QualDspF        S             20
+
+
+     D RtvSizeInfo     DS
+     D                                4
+     D  RtvSize                      10I 0
+
+     D Counter         S              5I 0
+
+     D #NumFlds        S             10I 0
+     D TotFlds         S             10I 0
+     D RecordName      S             10A
+
+
+     D FindStr         s             32A   varying
+     D x               s             10I 0
+     D c               s             10I 0
+     D f               s             10I 0
+     D k               s             10I 0
+     D
+     D xx              s             10I 0
+     D xc              s             10I 0
+     D xf              s             10I 0
+     D xk              s             10I 0
+     D
+     D lx              s             10I 0
+     D lc              s             10I 0
+     D lf              s             10I 0
+     D lk              s             10I 0
+     D
+     D rx              s             10I 0
+     D rc              s             10I 0
+     D rf              s             10I 0
+     D rk              s             10I 0
+     D
+     D fx              s             10I 0
+     D fc              s             10I 0
+     D ff              s             10I 0
+     D fk              s             10I 0
+     D
+     D cx              s             10I 0
+     D cc              s             10I 0
+     D cf              s             10I 0
+     D ck              s             10I 0
+     D
+     D len             s             10I 0
+     D FldIdx          s             10I 0
+     D SizeIdx         s             10I 0
+     D ScrnSize        s              1
+     D SflCtl          s               N
+
+     D RcvVarLen       S                   Like( IntTyp    )
+     D Idx             S                   Like( IntTyp    )
+
+     D APIErrDS        DS
+     D  ApiErrLen                    10I 0 Inz( %Size( APIErrDS ) )
+     D  BytesAvail                   10I 0 Inz( *Zero )
+     D                                7    Inz( *Blanks )
+     D                                1    Inz( X'00' )
+     D                              256    Inz( *Blanks )
+
+
+     D CONSTANT        C                   x'01'
+     D DFT             C                   x'01'
+     D Bit0            C                   X'80'
+     D Bit1            C                   X'40'
+     D Bit2            C                   X'20'
+     D Bit3            C                   X'10'
+     D Bit4            C                   X'08'
+     D Bit5            C                   X'04'
+     D Bit6            C                   X'02'
+     D Bit7            C                   X'01'
+      *  How to test for bits
+      * If %Bitand(Hexval:Bit0) = Bit0;
+      * Dsply 'Bit 0 is *On';
+      * Else;
+      * Dsply 'Bit 0 is *Off';
+      * Endif;
+
+
+     D KwdData         s           3564A   varying based(p_KwdData)
+
+     D temp            s                   like(KwdData)
+      *%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+     D col             s              5I 0
+     D row             s              5I 0
+
+     D wBinDS          DS
+     D  hx1                    1      1
+     D  hx2                    2      2
+     D  wBin                   1      2B 0
+
+
+     C                   CallP     RtvDspFDesc(
+     C                                          RtvSizeInfo :
+     C                                          8           :
+     C                                          'DSPF0100'  :
+     C                                          QDspFil     :
+     C                                          APIErrDS
+     C                                        )
+     C                   If        BytesAvail > 0
+     C                   Return    *Off
+     C                   EndIf
+
+     C                   eval      p_QDFFBASE = %alloc(RtvSize)
+
+      *-------------------------------------------------------------------
+     C                   Reset                   APIErrDS
+      *  Retrieve display file description ( QDFRTVFD ) API
+     C                   CallP     RtvDspFDesc(
+     C                                          QDFFBASE   :
+     C                                          RtvSize    :
+     C                                          'DSPF0100' :
+     C                                          QDspFil    :
+     C                                          APIErrDS
+     C                                        )
+     C                   If        BytesAvail > 0
+     C                   Return    *Off
+     C                   EndIf
+     C
+     C                   Eval      p_FldDtaDS   =  %addr(FldDta)
+     C
+     C
+     C                   Eval      NumFlds = 1
+     C                   Eval      %OCCUR(FldDtaDS) = NumFlds
+        //  file header
+     C                   Eval      p_QDFFINFO =  p_QDFFBASE + QDFFBASE.WDFFINFO
+        //  file where used
+     C                   Eval      p_QDFWFLEI =  p_QDFFINFO + QDFFINFO.WDFFWUOF
+        //  file Dev Dep
+     C                   Eval      p_QDFFDPDD =  p_QDFFINFO + QDFFINFO.WDFFXDOF
+        //  rec where used (first)
+     C                   Eval      p_QDFWRCDI =  p_QDFWFLEI + QDFWFLEI.WDFWXLEN
+        //  name table
+     C                   Eval      p_QDFFNTBL =  p_QDFWFLEI + QDFWFLEI.WDFWNTBO
+        //  File Keywords
+     C                   EXSR      FileKwds
+
+        //  process record formats
+     C                   for       xx = 0 to (QDFFBASE.WDFFRCS - 1)
+
+     C                   if        xx <> 0
+     C                   Eval      p_QDFWRCDI  = p_QDFWRCDI + QDFWRCDI.WDFWNXTR
+     C                   Endif
+        //  record format
+     C                   eval      p_QDFARFTE = p_QDFFINFO + QDFFINFO.WDFFDFLO +
+     C                                (%size(QDFARFTE) * xx)
+
+     C                   eval      RecordName =    QDFARFTE.WDFARFNM
+     C
+
+     C                   if        %subst(RecordName:1:1) <> '*'
+     C                   EXSR      ProcessRecFmt
+     C                   endif
+
+
+     C                   endfor
+     C
+
+     C                   DeAlloc                 p_QDFFBASE
+     C                   Return    *On
+
+
+
+
+      *------------------------------------------------
+      * Process a record format.
+      *------------------------------------------------
+     CSR   ProcessRecFmt begsr
+
+
+          //  record header
+     C                   eval       p_QDFFRINF  = p_QDFFINFO + QDFARFTE.WDFARFOF
+          //  record dev dept
+     C                   eval       p_QDFFRDPD  = p_QDFFRINF + QDFFRINF.WDFFRAOF
+      *  SFLCTL
+      * 12  C       BIN(31) WDFFRFLG    Miscellaneous record contents.
+      * 12  C   0   BIT(1)  WDFFUDDS    If on, USRDFN keyword is specified.
+      * 12  C   1   BIT(1)  WDFFSFL If on, SFL keyword is specified (next record
+      * 12  C   2   BIT(1)  WDFFSFLC    If on, SFLCTL keyword is specified (prev
+     C                   eval       SflCtl = *off
+     C                   if         %bitand(QDFFRINF.WDFFRFLG1 : Bit2)  =  Bit2
+     C                   eval       p_QDFFSFCR  = p_QDFFRINF + QDFFRINF.WDFFRAOF
+     C                   eval       p_QDFFSFHR = %addr(QDFFSFCR.WDFFSFPM)
+     C                   eval       SflCtl = *on
+     C                   endif
+
+     C                   for        SizeIdx  = 0 to QDFFBASE.WDFFSCR -1
+     C                   eval       p_QDFFSCRA  = %addr( QDFFBASE.WDFFSCRS) +
+     C                                 %size(QDFFSCRA) * SizeIdx
+          //     *DS3 = X'03'   *DS4  = X'04'
+     C                   eval       ScrnSize =  QDFFSCRA.WDFFSCIA
+     C                   endfor
+
+          //  Row Col table
+     C                   eval       p_QDFFRCTB =  p_QDFFRINF + QDFFRDPD.WDFFDRCO
+     C
+     C                   eval       TotFlds   =  QDFFRINF.WDFFFLD
+          //  Record Keywords
+     C                   EXSR      RcdKwds
+     C
+
+     C                   EXSR      ProcessRcdFld
+
+     CSR                 endsr
+
+
+
+     CSR   ProcessRcdFld begsr
+      *  - Field Where Used -
+     C                   eval      p_QDFWFLDI = p_QDFWRCDI + QDFWRCDI.WDFWRLEN
+     C                   eval      p_QDFFFITB = p_QDFFRINF + QDFFRINF.WDFFOFIT
+     C                               +( QDFWFLDI.WDFWRRDX -1) * %len(QDFFFITB)
+     C                   for       FldIdx = 0 to QDFFRINF.WDFFFLD -1
+
+     C                   Exsr      GetFldInfo
+
+     C                   Exsr      FieldKwds
+
+      *    p_QDFWFLDI =  p_QDFWFLDI + WDFWFLDL  next
+     C                   if        FldIdx < QDFFRINF.WDFFFLD -1
+     C                   eval      p_QDFWFLDI =  p_QDFWFLDI +
+     C                                  QDFWFLDI.WDFWFLDL
+      * Field Indexing Table (QDFFFITB) for next Field
+     C                   eval       p_QDFFFITB  = p_QDFFRINF + QDFFRINF.WDFFOFIT
+     C                               +( QDFWFLDI.WDFWRRDX -1) * %len(QDFFFITB)
+     C                   endif
+
+     C                   Eval      #NumFlds  = NumFlds
+     C                   Eval      NumFlds += 1
+     C                   Eval      %OCCUR(FldDtaDS) = NumFlds
+
+
+     C                   Clear                   #FmtNam
+     C                   Clear                   #FldNam
+     C                   Clear                   #FldDTUS
+     C                   Clear                   #FldEdt
+     C                   Clear                   #FldLen
+     C                   Clear                   #FldPlen
+     C                   Clear                   #FldDec
+     C                   Clear                   #FldAtr
+     C                   Clear                   #FldRow
+     C                   Clear                   #FldCol
+     C                   Clear                   #FldCom
+     C
+     C                   endfor
+     C
+     C
+     C
+     CSR                 endsr
+
+     CSR   GetFldInfo    begsr
+      *
+     C                   eval      #FmtNam  =    RecordName
+
+      *  - Field Header
+     C                   eval      p_QDFFFINF  = p_QDFFRINF + QDFFFITB.WDFFFOFS
+     C                   if        QDFFFINF.WDFFFIOA = x'01'
+     C                   eval      p_QDFFFCON =  %ADDR(QDFFFINF.WDFFFTBE)
+     C                   eval      p_QDFFFDPD =  p_QDFFFINF + QDFFFCON.WDFFFAOC
+     C                   else
+      *   Variable
+     C                   eval      p_QDFFFNAM =  %ADDR(QDFFFINF.WDFFFTBE)
+     C                   eval      p_QDFFFDPD =  p_QDFFFINF + QDFFFNAM.WDFFFAOF
+     C                   eval      p_QDFFFDIC =  %addr(QDFFFDPD.WDFFFICE)
+     C                   endif
+      *   Field Extension
+     C                   eval      p_QDFFXFDP  = p_QDFFFINF + QDFFFDPD.WDFFXFDO
+      *    Row Column
+     C                   eval       p_QDFFRCTB =  p_QDFFRINF + QDFFRDPD.WDFFDRCO
+     C                               + (QDFWFLDI.WDFWRRDX -1) *2
+
+     C                   eval       p_QDFFRCTE  = %addr(QDFFRCTB.WDFFRC)
+      *
+     C                   eval       hx1 = x'00'
+     C                   eval       hx2 = QDFFRCTE.WDFFSROW
+     C                   eval       row = wBin
+     C                   eval       hx1 = x'00'
+     C                   eval       hx2 = QDFFRCTE.WDFFSCOL
+     C                   eval       col = wBin
+     C                   eval       #FldRow = row
+     C                   eval       #FldCol = col
+      *   date time flags
+     C                   if         %bitand(QDFFFINF.WDFFBFLG : Bit0)  =  Bit0
+     C                   eval      #FldCom = 'DATE'
+     C                   eval      #FldDTUS    = 'D'
+     C                   endif
+     C                   if         %bitand(QDFFFINF.WDFFBFLG : Bit1)  =  Bit1
+     C                   eval      #FldDTUS    = 'Y'
+     C                   endif
+     C                   if         %bitand(QDFFFINF.WDFFBFLG : Bit2)  =  Bit2
+     C                   eval      #FldDTUS    = 'T'
+     C                   endif
+     C                   if         %bitand(QDFFFINF.WDFFFBIT : Bit4)  =  Bit4
+     C                   eval      #FldDTUS    = 'U'
+     C                   endif
+     C                   if         %bitand(QDFFFINF.WDFFFBIT : Bit5)  =  Bit5
+     C                   eval      #FldDTUS    = 'S'
+     C                   endif
+      *
+      *   CONSTANTS
+     C                   if        QDFFFINF.WDFFFIOA = x'01'
+     C                   EXSR      ProcessCons
+     C                   ELSE
+      *    Field Name
+     C                   eval      p_QDFFNTB =  %addr(QDFFNTBL.WDFFNMES) +
+     C                                 +  10 * (QDFWFLDI.WDFWNMEI -1)
+      *
+      *   QDFFFINF.WDFFFIOA
+      *Field attribute.
+      *X'01' indicates Constant (see structure QDFFFCON, Constant Field Header
+      *X'02' indicates Output (O),
+      *X'03' indicates Message (M), h (B),
+      *X'04' indicates Input (I),  (P)
+      *X'05' indicates Both (B),
+      *X'06' indicates Hidden (H), and
+      *X'07' indicates Program to System (P)
+     C                   eval      #FldIO    = QDFFFINF.WDFFFIOA
+      *  WDFFKBDT
+      * Keyboard shift and data type.
+      * X'00' indicates Alpha shift/character (A),
+      * X'01' indicates Alpha only (X),
+      * X'02' indicates Numeric shift (N),
+      * X'03' indicates Numeric only (Y),
+      * X'04' indicates Katakana (K),
+      * X'05' indicates Digits only (D),
+      * X'06' indicates Inhibit keyboard (I),
+      * X'07' indicates Signed numeric/zoned (S),
+      * X'08' indicates Binary (B), X'09' indicates Packed (P),
+      * X'0A' indicates Floating (F),
+      * X'0B' indicates DBCS (J),
+      * X'0C' indicates Open (O), X'0D' indicates Either (E),
+      * X'0E' indicates Numeric-only character (M),
+      * X'0F' indicates Graphic (G),
+      * X'10' indicates Date (L),
+      * X'11' indicates Time (T), and
+      * X'12' indicates Timestamp (Z)
+
+     C                   eval      #FldAtr   = QDFFFNAM.WDFFKBDT
+     C                   eval      #FldNam   = QDFFNTB.WDFFNAM
+     C                   eval      #FldCom   = *blank
+     C                   eval      #FldPlen  = QDFFFNAM.WDFFPLEN
+     C                   eval      #FldDec   = QDFFFNAM.WDFFDEC
+
+
+     C                   endif
+
+
+     CSR                 endsr
+
+
+      *------------------------------------------------
+      * This loops through all keyword categories
+      *  for a constant field (text on the screen.)
+      *------------------------------------------------
+     CSR   ProcessCons   begsr
+     C
+     C*
+     C                   if        (QDFFFDPD.WDFFFDOC > 0)
+     C*
+     C                   eval      p_QDFFCOSA = p_QDFFFINF +
+     C                                           QDFFFDPD.WDFFFDOC
+     C*
+     C                   for        cc = 0 to (QDFFCOSA.WDFFCCT - 1)
+     C*
+     C                   eval       p_QDFFCCOA  = %addr(QDFFCOSA.WDFFCCOS)
+     C                                 + (cc * %size(QDFFCCOA))
+
+     C                   if        (QDFFCCOA.WDFFCAID  = x'22')
+     C                   eval       p_QDFKMFDK= p_QDFFFINF +
+     C                                            QDFFCCOA.WDFFCAOF
+     C                   exsr      ProcessCat22
+     C                   endif
+
+     C                   if        (QDFFCCOA.WDFFCAID  = x'23')
+     C                   eval       p_QDFKDFT = p_QDFFFINF +
+     C                                            QDFFCCOA.WDFFCAOF
+     C                   exsr      ProcessCat23
+     C                   endif
+     C
+     C                   if        (QDFFCCOA.WDFFCAID  = x'24')
+     C                   eval       p_QDFKEDTR =  p_QDFFFINF +
+     C                                            QDFFCCOA.WDFFCAOF
+     C                   exsr      ProcessCat24
+     C                   endif
+
+     C                   endfor
+     C
+     C                   endif
+     C
+     CSR                 endsr
+
+
+
+      *------------------------------------------------
+      * Process  File Keywords.
+      *------------------------------------------------
+     CSR   FileKwds      begsr
+     C
+     C                   if        (QDFFDPDD.WDFFXDOC > 0)
+     C*
+     C                   eval      p_QDFFCOSA = p_QDFFINFO +
+     C                                           QDFFDPDD.WDFFXDOC
+     C*
+     C                   for        lc = 0 to (QDFFCOSA.WDFFCCT - 1)
+     C*
+     C                   eval       p_QDFFCCOA  = %addr(QDFFCOSA.WDFFCCOS)
+     C                                 + (lc * %size(QDFFCCOA))
+
+     C                   eval       p_QDFKFILK = p_QDFFINFO +
+     C                                            QDFFCCOA.WDFFCAOF
+
+     C                   for       lk = 1 to QDFKFILK.WDFFKFIL
+
+     C                   if        (lk=1)
+     C                   eval      p_QDFKFLPM  = %addr(QDFKFILK.WDFKFILE)
+     C                   else
+     C                   eval      p_QDFKFLPM  = p_QDFKFLPM  +
+     C                                        %size(QDFKFLPM )
+     C                   endif
+     C
+     C                   eval      p_QDFKFLPP = %addr(QDFKFLPM.WDFKFLEX)
+     C                   for       lx = 1  to QDFKFLPM.WDFFKFLP
+     C
+     C                   select
+     C                   when      QDFKFLPM.WDFKFLID = x'02'
+     C                   eval      p_QDFKFLSZ = %addr(QDFKFLPP.WDFKFLNM)
+     C                   when      QDFKFLPM.WDFKFLID = x'04'
+     C                   eval      p_QDFKICVP = %addr(QDFKFLPP.WDFKFLNM)
+     C                   when      QDFKFLPM.WDFKFLID = x'05'
+     C                   eval      p_QDFKHARD = %addr(QDFKFLPP.WDFKFLNM)
+     C                   when      QDFKFLPM.WDFKFLID = x'06'
+     C                   eval      p_QDFKHXPS = %addr(QDFKFLPP.WDFKFLNM)
+     C                   when      QDFKFLPM.WDFKFLID = x'07'
+     C                   eval      p_QDFKHDOC = %addr(QDFKFLPP.WDFKFLNM)
+     C                   when      QDFKFLPM.WDFKFLID = x'08'
+     C                   eval      p_QDFKSIDX = %addr(QDFKFLPP.WDFKFLNM)
+     C                   when      QDFKFLPM.WDFKFLID = x'0A'
+     C                   eval      p_QDFKFALX = %addr(QDFKFLPP.WDFKFLNM)
+     C                   when      QDFKFLPM.WDFKFLID = x'0B'
+     C                   eval      p_QDFKESFL = %addr(QDFKFLPP.WDFKFLNM)
+     C                   when      QDFKFLPM.WDFKFLID = x'0C'
+     C                   eval      p_QDFKBODR = %addr(QDFKFLPP.WDFKFLNM)
+     C                   endsl
+
+
+     C                   eval      p_QDFKFLPP =
+     C                             p_QDFKFLPP + (QDFKFLPP.WDFKFLLN)
+     C                   endfor
+
+     C                   endfor
+
+     C
+     C
+     C                   endfor
+     C
+     C                   endif
+     C
+     CSR                 endsr
+
+      *------------------------------------------------
+      * Process  Record Keywords.
+      *------------------------------------------------
+     CSR   RcdKwds       begsr
+
+
+     C                   if        (QDFFRDPD.WDFFRDOC > 0)
+     C*
+     C                   eval      p_QDFFCOSA = p_QDFFRINF +
+     C                                           QDFFRDPD.WDFFRDOC
+
+     C                   for        rc = 0 to (QDFFCOSA.WDFFCCT - 1)
+     C*
+     C                   eval       p_QDFFCCOA  = %addr(QDFFCOSA.WDFFCCOS)
+     C                                 + (rc * %size(QDFFCCOA))
+      * Miscellaneous record-level keywords (uses (QDFKMSAP))
+      * no structures for  IDs X'01', X'02', X'03', X'04', X'05', X'06', X'07',
+      * ID  Keyword ID  Keyword
+      * X'01'   LOCK    X'09'   RMVWDW
+      * X'02'   ALARM   X'0F'   DSPMOD
+      * X'03'   BLINK   X'10'   CSRLOC
+      * X'04'   LOGOUT  X'11'   INDARA
+      * X'05'   ALWGPH  X'13'   SETOFF
+      * X'06'   MSGALARM    X'15'   RTNCSRLOC
+      * X'07'   RETLCKSTS   X'16'   MNUBARDSP
+      * X'08'   USRRSTDSP
+     C                   eval       p_QDFKMSRL = p_QDFFRINF +
+     C                                            QDFFCCOA.WDFFCAOF
+      * Command Key Keyword Structure (QDFKCKKW)  (uses (QDFKCKKE))
+      * Use structure QDFKCKKE for category 2 keyword IDs X'01' through X'25' an
+      * Use structure QDFKCKKE for category 2 keyword IDs X'01' through X'25' an
+      * ID  Keyword ID  Keyword ID  Keyword
+      * X'01'   CA/CF01 X'0E'   CA/CF14 X'1A'   ROLLDOWN
+      * X'02'   CA/CF02 X'0F'   CA/CF15 X'1B'   PRINT
+      * X'03'   CA/CF03 X'10'   CA/CF16 X'1C'   HOME
+      * X'04'   CA/CF04 X'11'   CA/CF17 X'1D'   CLEAR
+      * X'05'   CA/CF05 X'12'   CA/CF18 X'1E'   HELP
+      * X'06'   CA/CF06 X'13'   CA/CF19 X'20'   HLPRTN
+      * X'07'   CA/CF07 X'14'   CA/CF20 X'21'   VLDCMDKEY
+      * X'08'   CA/CF08 X'15'   CA/CF21 X'22'   ALTHELP
+      * X'09'   CA/CF09 X'16'   CA/CF22 X'23'   ALTPAGEUP
+      * X'0A'   CA/CF10 X'17'   CA/CF23 X'24'   ALTPAGEDWN
+      * X'0B'   CA/CF11 X'18'   CA/CF24 X'25'   MNUBARSW
+      * X'0C'   CA/CF12 X'19'   ROLLUP  X'30'   MNUCNL
+      * X'0D'   CA/CF13
+     C                   eval       p_QDFKCKKW = p_QDFFRINF +
+     C                                            QDFFCCOA.WDFFCAOF
+
+     C                   for       rk = 1 to QDFKCKKW.WDFFKCKS
+
+     C                   if        (rk=1)
+     C                   eval      p_QDFKCKKE  = %addr(QDFKCKKW.WDFKCKCM)
+     C                   else
+     C                   eval      p_QDFKCKKE  = p_QDFKCKKE +
+     C                                        %size(QDFKCKKE )
+     C                   endif
+     C
+     C                   eval      p_QDFKFLPP = %addr(QDFKFLPM.WDFKFLEX)
+     C                   for       rx = 1  to QDFKFLPM.WDFFKFLP
+     C
+     C*     this is unfinished
+     C                   eval      p_QDFKFLPP =
+     C                             p_QDFKFLPP + (QDFKFLPP.WDFKFLLN)
+     C                   endfor
+
+     C                   endfor
+
+     C
+     C
+     C                   endfor
+     C
+     C                   endif
+     C
+     CSR                 endsr
+
+      *------------------------------------------------
+      * Process  Record Keywords.
+      *------------------------------------------------
+     CSR   FieldKwds     begsr
+     C*
+     C                   if        (QDFFFDPD.WDFFFDOC > 0)
+     C*
+     C                   eval      p_QDFFCOSA = p_QDFFFINF +
+     C                                           QDFFFDPD.WDFFFDOC
+     C*
+     C                   for        fc = 0 to (QDFFCOSA.WDFFCCT - 1)
+     C*
+     C                   eval       p_QDFFCCOA  = %addr(QDFFCOSA.WDFFCCOS)
+     C                                 + (fc * %size(QDFFCCOA))
+
+     C                   if        (QDFFCCOA.WDFFCAID  = x'23')
+     C                   eval       p_QDFKDFT = p_QDFFFINF +
+     C                                            QDFFCCOA.WDFFCAOF
+     C                   exsr      ProcessCat23
+     C                   endif
+     C
+     C                   endfor
+     C
+     C                   endif
+     C
+     CSR                 endsr
+
+      *------------------------------------------------
+      * This loops through all keywords that fall into
+      *  category 22
+      *------------------------------------------------
+     CSR   ProcessCat22  begsr
+
+     C                   for       ck = 1 to QDFKMFDK.WDFFKMFS
+
+     C                   if        (ck=1)
+     C                   eval      p_QDFKMFDP = %ADDR(QDFKMFDK.WDFKMFEN)
+     C                   else
+     C                   eval      p_QDFKMFDP  = p_QDFKMFDP  +
+     C                                        %size(QDFKMFDP )
+     C                   endif
+
+     C                   select
+     C                   when      QDFKMFDP.WDFKMFID  = x'10'
+     C                   eval      p_QDFKMFMV = %ADDR(QDFKMFDP.WDFKMFEX)
+     C                   when      QDFKMFDP.WDFKMFID  = x'15'
+     C                   eval      p_QDFKMFRS = %ADDR(QDFKMFDP.WDFKMFEX)
+     C                   eval      p_QDFKMFEM = %ADDR(QDFKMFRS.WDFKMFEE)
+     C                   when      QDFKMFDP.WDFKMFID  = x'16'
+     C                   eval      p_QDFKMFRS = %ADDR(QDFKMFDP.WDFKMFEX)
+     C                   eval      p_QDFKMFEM = %ADDR(QDFKMFRS.WDFKMFEE)
+     C                   eval      p_QDFKMFSI = %ADDR(QDFKMFEM.WDFKMFTX)
+     C                   when      QDFKMFDP.WDFKMFID  = x'17'
+     C                   eval      p_QDFKDFLD = %ADDR(QDFKMFDP.WDFKMFEX)
+     C                   when      QDFKMFDP.WDFKMFID  = x'18'
+     C                   eval      p_QDFK_DATTIMFmat  = %ADDR(QDFKMFDP.WDFKMFEX)
+      * WDFK_DATTIM
+      * Format used for a field with the date or time data type.
+      * X'01' indicates *JOB,
+      * X'02' indicates *MDY,
+      * X'03' indicates *DMY,
+      * X'04' indicates *YMD,
+      * X'05' indicates *JUL,
+      * X'06' indicates *ISO,
+      * X'07' indicates *USA,
+      * X'08' indicates *EUR,
+      * X'09' indicates *JIS,
+      * X'0A' indicates *H
+     C                   when      QDFKMFDP.WDFKMFID  = x'19'
+     C                   eval      p_QDFK_DATTIM_Sep = %ADDR(QDFKMFDP.WDFKMFEX)
+     C                   eval      QDFK_DATTIM_Sep.WDFK_DATTIMSep =
+     C                              QDFK_DATTIM_Sep.WDFK_DATTIMSep
+     C
+     C                   when      QDFKMFDP.WDFKMFID  = x'1A'
+     C                   eval      p_QDFK_DATEP = %ADDR(QDFKMFDP.WDFKMFEX)
+     C                   eval      QDFK_DATEP.WDFK_DATE = QDFK_DATEP.WDFK_DATE
+      * 0   BIT(1)  WDFK_DATE_SYS   If on, the *SYS parameter is specified
+      * 1   BIT(1)  WDFK_DATE_YY    If on, the *YY parameter is specified
+      * 2   BIT(1)  WDFK_DATE_EDTCDEY  If on, the EDTCDE(Y) keyword was specify
+     C*                   If        %Bitand(WDFK_DATE:Bit0) = Bit0
+     C*                   If        %Bitand(WDFK_DATE:Bit1) = Bit1
+     C*                   If        %Bitand(WDFK_DATE:Bit2) = Bit2
+
+     C                   when      QDFKMFDP.WDFKMFID  = x'1B'
+     C                   eval      p_QDFK_MAPVAL = %ADDR(QDFKMFDP.WDFKMFEX)
+     C                   endsl
+
+     C                   endfor
+     C
+     C
+     C
+     CSR                 endsr
+      *------------------------------------------------
+      * This loops through all keywords that fall into
+      *  category 23 (DFT, MSGCON, DFTVAL, HTML)
+      *------------------------------------------------
+     CSR   ProcessCat23  begsr
+
+     C                   for       ck = 1 to QDFKDFT.WDFFKDFS
+
+     C                   if        (ck=1)
+     C                   eval      p_QDFKDFPM  = %addr(QDFKDFT.WDFKDFPE)
+     C                   else
+     C                   eval      p_QDFKDFPM  = p_QDFKDFPM  +
+     C                                        %size(QDFKDFPM )
+     C                   endif
+
+     C                   if        (QDFKDFPM.WDFKDFID  = DFT)
+
+     C                   eval      p_KwdData = p_QDFKDFPM  +
+     C                                     %size(QDFKDFPM ) - 2
+
+     C                   eval      Temp = KwdData
+     C
+
+     C                   eval      #FldLen = QDFKDFPM.WDFKDFLN
+     C                   eval      #FldIO    = QDFFFINF.WDFFFIOA
+     C                   eval      #FldCom = Temp
+     C
+     C                   endif
+     C
+     C                   endfor
+     CSR                 endsr
+
+
+      *------------------------------------------------
+      * This loops through all keywords that fall into
+      *  category 24 (Date, Time)
+      *------------------------------------------------
+     CSR   ProcessCat24  begsr
+
+     C                   for       ck = 1 to QDFKEDTR.WDFFKEDS
+
+     C                   if        (ck=1)
+     C                   eval      p_QDFKEDTP = %addr(QDFKEDTR.WDFKEDKW )
+     C                   else
+     C                   eval      p_QDFKEDTP  = p_QDFKEDTP  +
+     C                                        %size(QDFKEDTP )
+     C                   endif
+     C
+     C
+      *    EDIT Keyword Structure (QDFKEDTP)
+      *     Use this structure for category 24 keywords that
+      *  have keyword IDs of X'01' and X'02'.
+
+      *    Type    Variable Name   Field
+      *     CHAR(1) WDFKEDID    Keyword ID.
+      *     CHAR(1) WDFKEDSY    Zero suppress or fill character for the EDTCDE k
+      *     BIN(15) WDFKEDML    Length of the edit mask.
+      *     CHAR(1) *   Reserved.
+      *     CHAR(*) WDFKEDMS    The edit mask for the EDTCDE and EDTWRD keywords
+      *
+
+     C                   eval      #FldEdt = %subst(QDFKEDTP.WDFKEDMSX : 1
+     C                                               : QDFKEDTP.WDFKEDML)
+
+     C                   eval      #FldLen   = QDFKEDTP.WDFKEDML
+     C                   eval      #FldIO    = QDFFFINF.WDFFFIOA
+
+
+     C                   endfor
+     CSR                 endsr
+
+     P RtvFlds         E

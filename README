@@ -1,0 +1,101 @@
+	
+There are two programs  DSMFD and DSPINFO	
+COMPILE instructions are included as comments in the programs source code.
+	
+
+DSMFD Driver
+
+To use DSPINFO do:-
+
+CALL DSMFD ('urlib' 'urdspf')
+
+It will present a list of Display Records to you 
+that you can select to see how the display file looks on the screen. 
+
+Replace urlib with your library name.  Replace urdspf with your display file name.
+
+DSPINFO Svc Pgm
+
+This service program uses the QDFRTVFD API to pass back the 
+Display file Fields and Constants via a MODS.
+The amount of info returned is very rudimentary compared with what could be returned.
+
+usage   
+ parm  sent
+$FilQul = $Fil + $lib;
+ parms returned 
+   #GotFlds     --  Number of fields and constants
+   #FldDtaDS    --  MODS   with field/constant info
+
+*IN10 = RTVFLDS ($FilQul : #GotFlds    : FldDtaDS);
+
+     D FldDtaDS        DS                  occurs(1000)
+     D  #FmtNam                      10A
+     D  #FldNam                      10A
+     D  #FldLen                       5I 0
+     D  #FldPlen                      5I 0
+     D  #FldDec                       1
+     D  #FldIO                        1
+     D  #FldAtr                       1
+     D  #FldDTUS                      1
+     D  #FldEdt                      20A
+     D  #FldRow                      10I 0
+     D  #FldCol                      10I 0
+     D  #FldCom                    1000A   varying
+
+I based my DSM logic on this 
+Dynamic screen example with FTP 
+Thanks to Scott Klement 
+
+I based my code for the QDFRTVFD API on the example from Scott Klement. 
+Thank you Scott.
+My code looks very different to Scotts work. But without Scotts example 
+I would not have got anywhere.
+
+The key to understanding the API is that on any one iteration 
+though the data structures ONLY ONE FIELDS INFORMATION AT A TIME is retrieved.
+
+The DSPINFO program is not complete.
+But it does get enough info to show a layout.
+Much remains to be done; a partial list is, WINDOWS, SUBFILES, REFERENCES,ATTRIBUTES etc etc etc.
+I am now amazed and humbled by the work of the IBM programmers 
+that set up such a thing as an external display file.
+
+I found IBM documentation both detailed and frustrating in particular 
+how to set the pointers to the next iteration of a DS.
+And there is a very devious bit on the indexes WDFWRRDX WDFWNMEI 
+you must use these and never assume the fields follow some sequence.
+
+I am having trouble with the retrieval of attributes (file , record and field)
+I get a weird result with edit codes.
+
+#FLDEDT = '�£ ��¥¥^:�¥¥^:�¥¥   '  for   1 61TIME EDTWRD('  :  :  ')
+EVAL #FldEdt    :x                                                      
+   00000     03B14003 03B2B2B0 7A03B2B2 B07A03B2   - .£ ..¥¥^:.¥¥^:.¥   
+   00010     B2404040 ........ ........ ........   - ¥   ............   
+
+I found the IBM code for the API in QSYSINC too arcane to use as is.
+However it was a good start and after removing the comments and 
+renaming fields to match the IBM docs of QDFRTVFD I used the result.
+I also reformatted some of the DS to use the OVERLAY notation.
+Also there are many fields missing in the QSYSINC of the type like WDFFRC
+
+   ====  example of missing field  ===
+	Row-Column Table (QDFFRCTB)				
+	Row-column table, one table per screen size. 
+	Offset		Bit	Type	Variable Name
+	Dec	Hex			
+	0	0		CHAR(1)	WDFFFRRO
+	1	1		CHAR(1)	WDFFFRCO
+	2	2		CHAR(1)	WDFFTORO
+	3	3		CHAR(1)	WDFFTOCO
+	4	4		CHAR(1)	WDFFRBIT
+	4	4	0	BIT(1)	WDFFMDF
+	4	4	1	BIT(1)	WDFFFRC1
+	4	4	2	BIT(1)	WDFFTRAT
+	4	4	3	BIT(1)	WDFFR1C1
+	4	4	4	BIT(1)	WDFFR2C1
+	4	4	5	BIT(3)	*
+	5	5		CHAR(1)	*
+	6	6		CHAR(*)	WDFFRC
+	
